@@ -1,33 +1,40 @@
-<div id="next-prayer-timer" style="font-size: 1.2em; color: #ffbc00; margin-bottom: 15px; font-weight: bold;">
-    جاري حساب الوقت للصلاة القادمة...
-</div>
-<div id="prayers-list"></div>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { background: transparent; color: white; text-align: center; font-family: sans-serif; margin: 0; padding: 10px; }
+        #timer { font-size: 1.4em; color: #00d2ff; font-weight: bold; margin-bottom: 10px; }
+        .times { font-size: 0.9em; display: flex; justify-content: space-around; opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div id="timer">جاري الحساب...</div>
+    <div id="prayers" class="times"></div>
 
-<script>
-    async function updateTimes() {
-        const res = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13');
-        const data = await res.json();
-        const timings = data.data.timings;
-        
-        // منطق العد التنازلي
-        const now = new Date();
-        let nextPrayer = null;
-        const prayerNames = {"Fajr":"الفجر", "Dhuhr":"الظهر", "Asr":"العصر", "Maghrib":"المغرب", "Isha":"العشاء"};
-        
-        for (let [id, name] of Object.entries(prayerNames)) {
-            const pTime = new Date(now.toDateString() + ' ' + timings[id]);
-            if (pTime > now) {
-                nextPrayer = {name, time: pTime};
-                break;
+    <script>
+        async function update() {
+            const res = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13');
+            const d = await res.json();
+            const t = d.data.timings;
+            const now = new Date();
+            const pNames = {"Fajr":"الفجر", "Dhuhr":"الظهر", "Asr":"العصر", "Maghrib":"المغرب", "Isha":"العشاء"};
+            
+            let next = null;
+            for (let [id, name] of Object.entries(pNames)) {
+                let pTime = new Date(now.toDateString() + ' ' + t[id]);
+                if (pTime > now) { next = {name, time: pTime}; break; }
             }
-        }
 
-        if (nextPrayer) {
-            const diff = Math.floor((nextPrayer.time - now) / 60000);
-            const hours = Math.floor(diff / 60);
-            const mins = diff % 60;
-            document.getElementById('next-prayer-timer').innerText = `باقي لـ ${nextPrayer.name}: ${hours} ساعة و ${mins} دقيقة`;
+            if (next) {
+                let diff = Math.floor((next.time - now) / 60000);
+                document.getElementById('timer').innerText = `باقي لـ ${next.name}: ${Math.floor(diff/60)}س و ${diff%60}د`;
+            }
+            
+            document.getElementById('prayers').innerHTML = `<span>الفجر ${t.Fajr}</span> <span>الظهر ${t.Dhuhr}</span> <span>المغرب ${t.Maghrib}</span>`;
         }
-    }
-    updateTimes();
-</script>
+        update();
+        setInterval(update, 60000); // تحديث كل دقيقة
+    </script>
+</body>
+</html>
