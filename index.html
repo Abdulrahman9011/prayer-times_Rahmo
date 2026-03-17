@@ -2,89 +2,93 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* تصميم مخصص للـ Widget */
-        body { 
-            background: transparent; /* خلفية شفافة */
-            color: #ffffff; 
-            text-align: center; 
-            font-family: 'Segoe UI', Tahoma, sans-serif; 
-            margin: 0; 
-            padding: 0;
+        body {
+            background: transparent; /* لجعل الخلفية شفافة تماماً */
+            margin: 0;
             display: flex;
-            flex-direction: column;
             justify-content: center;
+            align-items: center;
             height: 100vh;
-            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            color: white;
         }
-        .widget-box {
-            background: rgba(0, 0, 0, 0.6); /* خلفية سوداء خفيفة شفافة */
+        .widget-card {
+            background: rgba(255, 255, 255, 0.1); /* تأثير زجاجي */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px;
             padding: 15px;
-            display: inline-block;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
-        #timer { 
-            font-size: 1.8rem; /* خط كبير جداً */
-            color: #00d2ff; 
-            font-weight: bold; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            margin-bottom: 5px;
+        #next-prayer { font-size: 0.9rem; color: #ffbc00; margin-bottom: 5px; }
+        #countdown { font-size: 2rem; font-weight: bold; color: #00d2ff; margin-bottom: 15px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            font-size: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 10px;
         }
-        .next-label { font-size: 1rem; color: #ffbc00; margin-bottom: 10px; }
-        .footer-times { 
-            font-size: 0.8rem; 
-            display: flex; 
-            justify-content: space-around; 
-            opacity: 0.8;
-            border-top: 1px solid rgba(255,255,255,0.2);
-            padding-top: 8px;
-        }
+        .prayer-item span { display: block; opacity: 0.8; }
+        .active { color: #ffbc00; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="widget-box">
-    <div id="next-name" class="next-label">جاري التحميل...</div>
-    <div id="timer">--:--</div>
-    <div id="prayers" class="footer-times"></div>
+<div class="widget-card">
+    <div id="next-prayer">جاري التحميل...</div>
+    <div id="countdown">00:00</div>
+    <div class="grid" id="all-prayers">
+        </div>
 </div>
 
 <script>
-    async function update() {
+    async function getTimes() {
         try {
             const res = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13');
-            const d = await res.json();
-            const t = d.data.timings;
+            const json = await res.json();
+            const t = json.data.timings;
             const now = new Date();
-            const pNames = {"Fajr":"الفجر", "Dhuhr":"الظهر", "Asr":"العصر", "Maghrib":"المغرب", "Isha":"العشاء"};
             
+            const list = [
+                {n: "الفجر", h: t.Fajr}, {n: "الظهر", h: t.Dhuhr}, 
+                {n: "العصر", h: t.Asr}, {n: "المغرب", h: t.Maghrib}, 
+                {n: "العشاء", h: t.Isha}
+            ];
+
             let next = null;
-            for (let [id, name] of Object.entries(pNames)) {
-                let pTime = new Date(now.toDateString() + ' ' + t[id]);
-                if (pTime > now) { next = {name, time: pTime}; break; }
-            }
-            if (!next) { // إذا انتهت صلوات اليوم، اعرض فجر الغد
-                next = {name: "الفجر", time: new Date(now.getTime() + 86400000)}; 
-            }
+            let html = '';
+            
+            list.forEach(p => {
+                const pTime = new Date(now.toDateString() + ' ' + p.h);
+                let cls = '';
+                if (!next && pTime > now) {
+                    next = {name: p.n, time: pTime};
+                    cls = 'active';
+                }
+                html += `<div class="prayer-item ${cls}"><span>${p.n}</span>${p.h}</div>`;
+            });
 
-            const diffMs = next.time - now;
-            const hours = Math.floor(diffMs / 3600000);
-            const mins = Math.floor((diffMs % 3600000) / 60000);
+            if (!next) next = {name: "الفجر", time: new Date(now.getTime() + 86400000)};
+
+            document.getElementById('all-prayers').innerHTML = html;
+            document.getElementById('next-prayer').innerText = `باقي لـ ${next.name}`;
             
-            document.getElementById('next-name').innerText = `الوقت المتبقي لـ ${next.name}`;
-            document.getElementById('timer').innerText = `${hours}س و ${mins}د`;
+            const diff = next.time - now;
+            const hrs = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            document.getElementById('countdown').innerText = `${hrs}س و ${mins}د`;
             
-            document.getElementById('prayers').innerHTML = `
-                <span>الفجر ${t.Fajr}</span>
-                <span>الظهر ${t.Dhuhr}</span>
-                <span>المغرب ${t.Maghrib}</span>
-            `;
-        } catch(e) { document.getElementById('timer').innerText = "خطأ باتصال"; }
+        } catch(e) { document.getElementById('countdown').innerText = "خطأ!"; }
     }
-    update();
-    setInterval(update, 30000); // تحديث كل 30 ثانية
+    getTimes();
+    setInterval(getTimes, 60000);
 </script>
-
 </body>
 </html>
