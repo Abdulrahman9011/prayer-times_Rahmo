@@ -3,17 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        body { background: transparent; color: white; text-align: center; font-family: sans-serif; margin: 0; padding: 10px; }
-        #timer { font-size: 1.4em; color: #00d2ff; font-weight: bold; margin-bottom: 10px; }
-        .times { font-size: 0.9em; display: flex; justify-content: space-around; opacity: 0.9; }
+        /* تصميم مخصص للـ Widget */
+        body { 
+            background: transparent; /* خلفية شفافة */
+            color: #ffffff; 
+            text-align: center; 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            margin: 0; 
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .widget-box {
+            background: rgba(0, 0, 0, 0.6); /* خلفية سوداء خفيفة شفافة */
+            border-radius: 20px;
+            padding: 15px;
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #timer { 
+            font-size: 1.8rem; /* خط كبير جداً */
+            color: #00d2ff; 
+            font-weight: bold; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 5px;
+        }
+        .next-label { font-size: 1rem; color: #ffbc00; margin-bottom: 10px; }
+        .footer-times { 
+            font-size: 0.8rem; 
+            display: flex; 
+            justify-content: space-around; 
+            opacity: 0.8;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 8px;
+        }
     </style>
 </head>
 <body>
-    <div id="timer">جاري الحساب...</div>
-    <div id="prayers" class="times"></div>
 
-    <script>
-        async function update() {
+<div class="widget-box">
+    <div id="next-name" class="next-label">جاري التحميل...</div>
+    <div id="timer">--:--</div>
+    <div id="prayers" class="footer-times"></div>
+</div>
+
+<script>
+    async function update() {
+        try {
             const res = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Bursa&country=Turkey&method=13');
             const d = await res.json();
             const t = d.data.timings;
@@ -25,16 +64,27 @@
                 let pTime = new Date(now.toDateString() + ' ' + t[id]);
                 if (pTime > now) { next = {name, time: pTime}; break; }
             }
-
-            if (next) {
-                let diff = Math.floor((next.time - now) / 60000);
-                document.getElementById('timer').innerText = `باقي لـ ${next.name}: ${Math.floor(diff/60)}س و ${diff%60}د`;
+            if (!next) { // إذا انتهت صلوات اليوم، اعرض فجر الغد
+                next = {name: "الفجر", time: new Date(now.getTime() + 86400000)}; 
             }
+
+            const diffMs = next.time - now;
+            const hours = Math.floor(diffMs / 3600000);
+            const mins = Math.floor((diffMs % 3600000) / 60000);
             
-            document.getElementById('prayers').innerHTML = `<span>الفجر ${t.Fajr}</span> <span>الظهر ${t.Dhuhr}</span> <span>المغرب ${t.Maghrib}</span>`;
-        }
-        update();
-        setInterval(update, 60000); // تحديث كل دقيقة
-    </script>
+            document.getElementById('next-name').innerText = `الوقت المتبقي لـ ${next.name}`;
+            document.getElementById('timer').innerText = `${hours}س و ${mins}د`;
+            
+            document.getElementById('prayers').innerHTML = `
+                <span>الفجر ${t.Fajr}</span>
+                <span>الظهر ${t.Dhuhr}</span>
+                <span>المغرب ${t.Maghrib}</span>
+            `;
+        } catch(e) { document.getElementById('timer').innerText = "خطأ باتصال"; }
+    }
+    update();
+    setInterval(update, 30000); // تحديث كل 30 ثانية
+</script>
+
 </body>
 </html>
